@@ -1,0 +1,229 @@
+#include <SoftwareSerial.h> // dołączenie biblioteki software serial
+SoftwareSerial hc06(A3, A1);// rozpoczęcie komunikacji szeregowej poprzez porty A3 oraz A1
+// deklaracja zmiennych globalnych
+char data;
+int X = 100;
+int Y = 50;
+int Z = X - Y;
+char test=0;
+//sterowanie lewo i prawo
+#define alarm A4 //alarm
+#define PP1 2 //Przedni prawy 1
+#define PP2 13 //Przedni prawy 2
+#define PL1 4 //Przedni Lewy 1
+#define PL2 3 // przedni lewy 2
+#define TP1 11 //tylni prawy 1
+#define TP2 12 //tylni prawy 2
+#define TL1 7 //tylni lewy 1
+#define TL2 8 //tylni lewy 2
+//sterowanie przód i tył
+#define PP_brum 10 //przedni prawy enable
+#define PL_brum 6 //przedni lewy enable
+#define TP_brum 9 //tylni prawy enable
+#define TL_brum 5 //tylni lewy enable
+#define max_prunt 255 //Wynika to z tego, że zasilanie dostarczone będzie MAX 6/5V a silniki są na 6v
+
+void setup() {
+ //Definiowanie silnikow
+ pinMode(PL_brum, OUTPUT); //Sygnał PWM silnika nr 1
+ pinMode(TL1, OUTPUT); //Sygnały sterujące kierunkiem obrotów silnika nr 1(PRAWY PRZEDNI)
+ pinMode(TL2, OUTPUT); //Sygnały sterujące kierunkiem obrotów silnika nr 1
+pinMode(alarm, OUTPUT);
+ pinMode(TL_brum, OUTPUT); //Sygnał PWM silnika nr 2
+ pinMode(TP2, OUTPUT); //Sygnały sterujące kierunkiem obrotów silnika nr 2(LEWY PRZEDNI)
+ pinMode(PP2, OUTPUT); //Sygnały sterujące kierunkiem obrotów silnika nr 2
+ pinMode(TP1, OUTPUT); //Sygnał PWM silnika nr 3
+ pinMode(PP_brum, OUTPUT); //Sygnały sterujące kierunkiem obrotów silnika nr 3 (TYLNI 
+PRAWY)
+ pinMode(PL1, OUTPUT); //Sygnały sterujące kierunkiem obrotów silnika nr 3
+ pinMode(TP_brum, OUTPUT); //Sygnał PWM silnika nr 4
+ pinMode(PL2, OUTPUT); //Sygnały sterujące kierunkiem obrotów silnika nr 4 (LEWY TYLNI)
+ pinMode(PP1, OUTPUT); //Sygnały sterujące kierunkiem obrotów silnika nr 4
+ //Ustawienie stanów niskich na wszystkich wyjściach, procedura zapobiegania błędom
+ digitalWrite(alarm, LOW);
+ digitalWrite(PP1, LOW);
+ digitalWrite(PL2, LOW);
+ digitalWrite(PL1, LOW);
+ digitalWrite(TL_brum, LOW);
+ digitalWrite(PL_brum, LOW);
+ digitalWrite(TL1, LOW);
+ digitalWrite(TL2, LOW);
+ digitalWrite(TP_brum, LOW);
+ digitalWrite(PP_brum, LOW);
+ digitalWrite(TP2, LOW);
+ digitalWrite(PP2, LOW);
+ //komunikacja po magistrali szeregowej
+ Serial.begin(9600);
+ //komunikat
+ Serial.println("Testowanko komend zdalnych"); //Pokazuje napis bo chcę sprawdzić czy działa
+ //rozpoczecie komunikacji z HC06 czyli łączenie z Bluetoothem
+ hc06.begin(9600);
+}
+
+void loop()
+{ 
+ while (Serial.available()) //jezeli przyszedl jakis komunikat np. bit z telefonu
+ if ( hc06.available()) { //jeżeli hc jest dostępne
+ data = (hc06.read()); //odczytaj dane pochodzące z HC06 i przypisz je do zmiennej data
+ Serial.write(data); 
+ switch (data) {
+ case '0': 
+ // przód
+ prawy_przedni_silnik(X);
+ lewy_przedni_silnik(X);
+ prawy_tylni_silnik(X);
+ lewy_tylni_silnik(X);
+ break;
+ case '1':
+ // lekko w prawo
+ prawy_przedni_silnik(X);
+ lewy_przedni_silnik(Y);
+ prawy_tylni_silnik(X);
+ lewy_tylni_silnik(Y);
+ break;
+ case '2':
+ // lekko w lewo
+ prawy_przedni_silnik(Y);
+ lewy_przedni_silnik(X);
+ prawy_tylni_silnik(Y);
+ lewy_tylni_silnik(X);
+ break;
+ case '3': 
+ // prawo
+ prawy_przedni_silnik(X);
+ lewy_przedni_silnik(-X);
+ prawy_tylni_silnik(X);
+ lewy_tylni_silnik(-X); 
+ break;
+ case '4':
+ // lewo 
+ prawy_przedni_silnik(-X);
+ lewy_przedni_silnik(X);
+ prawy_tylni_silnik(-X);
+ lewy_tylni_silnik(X);
+ break;
+ case '5': 
+ // do tyłu
+ prawy_przedni_silnik(-X);
+ lewy_przedni_silnik(-X);
+ prawy_tylni_silnik(-X);
+ lewy_tylni_silnik(-X);
+ break;
+ case '6': 
+ // lekko do tyłu w prawo
+ prawy_przedni_silnik(-X);
+ lewy_przedni_silnik(-Y);
+ prawy_tylni_silnik(-X);
+ lewy_tylni_silnik(-Y); 
+ break;
+ case '7': 
+ // lekko do tyłu w lewo
+ prawy_przedni_silnik(-Y);
+ lewy_przedni_silnik(-X);
+ prawy_tylni_silnik(-Y);
+ lewy_tylni_silnik(-X); 
+ break;
+ case '8':
+ // zmiana prędkości na max
+ X = 100;
+ Y = 50;
+Z = X - Y;
+ break; 
+ case '9':
+ // zmiana prędko
+ X = 70;
+ Y = 35;
+ Z = X - Y;
+break;
+ case 'Z': // stop silników
+ prawy_przedni_silnik(0);
+ lewy_przedni_silnik(0);
+ prawy_tylni_silnik(0);
+ lewy_tylni_silnik(0);
+ break;
+ case 'A': // zapalenie światła
+digitalWrite(alarm, HIGH);
+break;
+ case 'C': //stop światło
+digitalWrite(alarm, LOW);
+break;
+ }
+ }
+}
+
+void prawy_przedni_silnik(int kierunek) { //funkcja do sterowania silnikami
+ if (kierunek > 0) //jeżeli kierunek jest większy od 0 to robot porusza się do przodu
+ {
+ (kierunek) = map(kierunek), 0, 100, 0, max_prunt); // przypisanie wartości od 0 do 100 do 
+odpowiedniej wartości z przedziału od 0 do 255
+ digitalWrite(PP1, 1); // kierunek do przodu
+ digitalWrite(PP2, 0); // kierunek do przodu
+ analogWrite(PP_brum, kierunek)); // predkość
+ }
+ else
+ {
+ (kierunek) = abs(kierunek)); // w przeciwnym przypadku jedziemy do tyłu
+ (kierunek) = map(kierunek), 0, 100, 0, max_prunt); // przypisanie wartości od 0 do 100 do 
+odpowiedniej wartości z przedziału od 0 do 255
+ digitalWrite(PP1, 0); // kierunek do przodu
+ digitalWrite(PP2, 1); // kierunek do przodu
+ analogWrite(PP_brum, kierunek)); // predkość
+ }
+}
+//struktura kodu jest taka sama jak powyżej, z tym, że kolejno dotyczy silników: lewy przednio, prawy
+tylni i lewy tylni
+
+void lewy_przedni_silnik(int kierunek)) {
+ if (kierunek) > 0)
+ {
+ (kierunek)= map(kierunek), 0, 100, 0, max_prunt);
+ digitalWrite(PL1, 1);
+ digitalWrite(PL2, 0); 
+ analogWrite(PL_brum, kierunek)); 
+ }
+ else
+ {
+ (kierunek)= abs(kierunek));
+ (kierunek) = map(kierunek), 0, 100, 0, max_prunt);
+ digitalWrite(PL1, 0);
+ digitalWrite(PL2, 1); 
+ analogWrite(PL_brum, kierunek)); 
+ }
+}
+
+void prawy_tylni_silnik(int kierunek)) {
+ if (kierunek) > 0)
+ {
+57
+ V = map(V, 0, 100, 0, max_prunt);
+ digitalWrite(TP1, 1); 
+ digitalWrite(TP2, 0);
+ analogWrite(TP_brum, kierunek));
+ }
+ else
+ {
+ (kierunek) = abs(kierunek));
+ (kierunek) = map(V, 0, 100, 0, max_prunt);
+ digitalWrite(TP1, 0); 
+ digitalWrite(TP2, 1);
+ analogWrite(TP_brum, kierunek)); 
+ }
+}
+
+void lewy_tylni_silnik(int kierunek)) {
+ if (kierunek) > 0)
+ {
+ (kierunek) = map(kierunek), 0, 100, 0, max_prunt);
+ digitalWrite(TL1, 1);
+ digitalWrite(TL2, 0); 
+ analogWrite(TL_brum, kierunek)); 
+ }
+ else
+ {
+ (kierunek) = abs(kierunek));
+ (kierunek) = map(kierunek), 0, 100, 0, max_prunt);
+ digitalWrite(TL1, 0); 
+ digitalWrite(TL2, 1); 
+ analogWrite(TL_brum, kierunek));
+ }
+}
